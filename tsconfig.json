@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "./dist",
-    "module": "commonjs",
+    "outDir": "./tscOutDir",
     "target": "esnext",
     "lib": ["esnext"],
     "alwaysStrict": true,
