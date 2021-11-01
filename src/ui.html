@@ -14,14 +14,17 @@
       transition: box-shadow 0.5s;
       margin: 4px;
     }
+
     #board button[data-color="red"] {
       background-color: red;
     }
+
     #board button[data-color="blue"] {
       background-color: blue;
     }
+
     #board.myturn button[data-color="none"] {
-      box-shadow: 0 .5rem 1rem rgba(0,0,0,.35);
+      box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .35);
     }
   </style>
 </head>
@@ -38,10 +41,12 @@
   <br>
 
   Your color: <span id="myColor">???</span>. <span id="instruction">Waiting for opponent...</span>
-  
+
   <br>
 
-  <div id="board"><!-- will be created dynamically --></div>
+  <div id="board">
+    <!-- will be created dynamically -->
+  </div>
 
   <br />
   <a href="https://github.com/schweikart">@schweikart</a> made this
@@ -58,7 +63,7 @@
     let currentWebSocket = null;
 
     async function joinGame(gameName) {
-      const newSocket = new WebSocket(`ws://${window.location.hostname}:${window.location.port}/api/game/${gameName}`);
+      const newSocket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:${window.location.port}/api/game/${gameName}`);
       newSocket.addEventListener('open', event => {
         currentWebSocket = newSocket;
       });
@@ -95,6 +100,7 @@
       });
       newSocket.addEventListener('error', event => {
         alert(`Error in web socket: ${event.toString()}`);
+        console.dir(event)
         currentWebSocket.close();
       });
       newSocket.addEventListener('close', event => {
