@@ -35,7 +35,5 @@ async function handleApiRequest(req: Request, env: Env): Promise<Response> {
   }
 
   const gameStub = env.GAMEINSTANCE.get(env.GAMEINSTANCE.idFromName(gameName));
-  
-  const resp = await gameStub.fetch(req.url);
-  return new Response(await resp.text());
+  return await gameStub.fetch(req.url, req);
 }

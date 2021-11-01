@@ -1,36 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tic Tac Toe</title>
-    <style>
-      button {
-        width: 100px;
-        height: 100px;
-        border: 1px dotted gray;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic Tac Toe</title>
+  <style>
+    #board button {
+      width: 100px;
+      height: 100px;
+      border: 1px dotted gray;
+      transition: box-shadow 0.5s;
+      margin: 4px;
+    }
+    #board button[data-color="red"] {
+      background-color: red;
+    }
+    #board button[data-color="blue"] {
+      background-color: blue;
+    }
+    #board.myturn button[data-color="none"] {
+      box-shadow: 0 .5rem 1rem rgba(0,0,0,.35);
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Tic Tac Toe</h1>
+
+  <form id="joinGameForm">
+    <label for="gameNameInput">Game name:</label>
+    <input type="text" name="gameName" id="gameNameInput" value="testgame" />
+    <button type="submit">Join or start game</button>
+  </form>
+
+  <br>
+
+  Your color: <span id="myColor">???</span>. <span id="instruction">Waiting for opponent...</span>
+  
+  <br>
+
+  <div id="board"><!-- will be created dynamically --></div>
+
+  <br />
+  <a href="https://github.com/schweikart">@schweikart</a> made this
+  <script>
+    const joinGameForm = document.getElementById('joinGameForm');
+    const myColorSpan = document.getElementById('myColor');
+    const instructionSpan = document.getElementById('instruction');
+    const boardContainer = document.getElementById('board');
+
+    /**
+     * Holds the web socket that connects to the current game instance.
+     * @type {WebSocket}
+     */
+    let currentWebSocket = null;
+
+    async function joinGame(gameName) {
+      const newSocket = new WebSocket(`ws://${window.location.hostname}:${window.location.port}/api/game/${gameName}`);
+      newSocket.addEventListener('open', event => {
+        currentWebSocket = newSocket;
+      });
+      newSocket.addEventListener('message', event => {
+        const message = JSON.parse(event.data);
+
+        switch (message.type) {
+          case 'color':
+            myColorSpan.innerText = message.color;
+            instructionSpan.innerText = 'Waiting for opponent...'
+            break;
+          case 'move':
+            if (message.turn === myColorSpan.innerText) {
+              instructionSpan.innerText = 'It\'s your turn!';
+              boardContainer.classList.add('myturn');
+            } else if (message.turn === 'none') {
+              instructionSpan.innerText = `Game over: ${message.winner === 'none' ? 'nobody' : message.winner} won!`;
+              boardContainer.classList.remove('myturn');
+            } else {
+              instructionSpan.innerText = `Waiting for ${message.turn} to make their move...`;
+              boardContainer.classList.remove('myturn');
+            }
+
+            message.fields.forEach((rowArray, rowNum) => {
+              rowArray.forEach((value, colNum) => {
+                fields[rowNum][colNum].dataset.color = value;
+              });
+            });
+            break;
+          default:
+            alert('Received invalid message: ' + event.data);
+            break;
+        }
+      });
+      newSocket.addEventListener('error', event => {
+        alert(`Error in web socket: ${event.toString()}`);
+        currentWebSocket.close();
+      });
+      newSocket.addEventListener('close', event => {
+        alert('Disconnected!');
+        currentWebSocket = null;
+      })
+    }
+
+    /**
+     * @param {SubmitEvent} event#
+     */
+    function clickJoinGame(event) {
+      let gameName = document.getElementById('gameNameInput').value;
+      if (!/^[0-9a-zA-Z]+$/.test(gameName)) {
+        alert('Invalid game name! You can only use letters and numbers.');
+      } else {
+        joinGame(gameName);
       }
-    </style>
-  </head>
-  <body>
-    <h1>Tic Tac Toe</h1>
+      return false; // cancel submission
+    }
 
-    <div>
-      <button></button>
-      <button></button>
-      <button></button>
-      <br />
-      <button></button>
-      <button></button>
-      <button></button>
-      <br />
-      <button></button>
-      <button></button>
-      <button></button>
-    </div>
+    joinGameForm.onsubmit = clickJoinGame;
 
-    <br />
-    <a href="https://github.com/schweikart">@schweikart</a> made this
-  </body>
+    function clickField(element, rowNum, colNum) {
+      if (boardContainer.classList.contains('myturn')) {
+        currentWebSocket.send(JSON.stringify({ type: 'move', row: rowNum, col: colNum }));
+      }
+    }
+
+    /** @type HTMLElement[][] */
+    const fields = [];
+    for (let row = 0; row < 3; row++) {
+      fields.push([]);
+      let rowDiv = document.createElement('div');
+      boardContainer.appendChild(rowDiv);
+      for (let col = 0; col < 3; col++) {
+        let el = document.createElement('button');
+        el.onclick = (event) => clickField(el, row, col);
+        el.dataset.color = 'none';
+        fields[row].push(el);
+        rowDiv.appendChild(el);
+      }
+    }
+  </script>
+</body>
+
 </html>

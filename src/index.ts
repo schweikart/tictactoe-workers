@@ -7,7 +7,10 @@ export default {
     try {
       return await handleRequest(request, env);
     } catch (e) {
-      return new Response(`${e}`);
+      console.error(e);
+      return new Response(`${e}`, {
+        status: 500,
+      });
     }
   }
 }
