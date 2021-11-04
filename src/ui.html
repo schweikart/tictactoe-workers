@@ -112,7 +112,7 @@
             if (message.turn === myColorSpan.innerText) {
               instructionSpan.innerText = 'It\'s your turn!';
               boardContainer.classList.add('myturn');
-            } else if (message.turn === 'none') {
+            } else if (message.winner !== null) {
               instructionSpan.innerText = `Game over: ${message.winner === 'none' ? 'nobody' : message.winner} won!`;
               boardContainer.classList.remove('myturn');
             } else {

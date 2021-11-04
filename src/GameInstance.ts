@@ -138,6 +138,7 @@ export class GameInstance {
   async reset(): Promise<void> {
     this.fields = createFields();
     this.turn = firstTurn;
+    this.winner = null;
     await this.state.storage?.deleteAll(); // we do not need to call `saveState` in this case
   }
 
