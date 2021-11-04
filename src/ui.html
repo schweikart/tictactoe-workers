@@ -44,28 +44,28 @@
 
 <body>
   <div id="container">
-  <h1>Tic Tac Toe</h1>
+    <h1>Tic Tac Toe</h1>
 
-  <form id="joinGameForm">
-    <label for="gameNameInput">Game name:</label>
-    <input type="text" name="gameName" id="gameNameInput" value="testgame" />
-    <button type="submit">Join or start game</button>
-  </form>
+    <form id="joinGameForm">
+      <label for="gameNameInput">Game name:</label>
+      <input type="text" name="gameName" id="gameNameInput" value="testgame" />
+      <button type="submit">Join or start game</button>
+    </form>
 
-  <br>
+    <br>
 
     <div id="gameContainer" class="hidden">
-  Your color: <span id="myColor">???</span>. <span id="instruction">Waiting for opponent...</span>
+      Your color: <span id="myColor">???</span>. <span id="instruction">Waiting for opponent...</span>
 
-  <br>
+      <br>
 
-  <div id="board">
-    <!-- will be created dynamically -->
-  </div>
+      <div id="board">
+        <!-- will be created dynamically -->
+      </div>
 
-  <br />
+      <br />
     </div>
-  <a href="https://github.com/schweikart">@schweikart</a> made this
+    <a href="https://github.com/schweikart">@schweikart</a> made this
   </div>
 
   <script>
@@ -81,6 +81,17 @@
      */
     let currentWebSocket = null;
 
+    /**
+     * Applies the colors from a 3x3 array to the game board.
+     */
+    function updateBoardColors(newFields) {
+      newFields.forEach((rowArray, rowNum) => {
+        rowArray.forEach((value, colNum) => {
+          fields[rowNum][colNum].dataset.color = value;
+        });
+      });
+    }
+
     async function joinGame(gameName) {
       const newSocket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:${window.location.port}/api/game/${gameName}`);
       newSocket.addEventListener('open', event => {
@@ -95,6 +106,7 @@
           case 'color':
             myColorSpan.innerText = message.color;
             instructionSpan.innerText = 'Waiting for opponent...'
+            updateBoardColors(message.fields);
             break;
           case 'move':
             if (message.turn === myColorSpan.innerText) {
@@ -108,11 +120,7 @@
               boardContainer.classList.remove('myturn');
             }
 
-            message.fields.forEach((rowArray, rowNum) => {
-              rowArray.forEach((value, colNum) => {
-                fields[rowNum][colNum].dataset.color = value;
-              });
-            });
+            updateBoardColors(message.fields);
             break;
           default:
             alert('Received invalid message: ' + event.data);

@@ -112,7 +112,7 @@ export class GameInstance {
     this.sessions.push(session);
 
     socket.accept();
-    socket.send(JSON.stringify({ type: 'color', color: session.color }));
+    socket.send(JSON.stringify({ type: 'color', color: session.color, fields: this.fields }));
     console.debug(`User with color ${session.color} is now connected!`);
 
     if (this.sessions.length >= 2) {
