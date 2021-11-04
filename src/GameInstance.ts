@@ -8,24 +8,63 @@ interface Session {
 type Color = 'red' | 'blue' | 'none';
 
 const BOARD_WIDTH = 3;
+const firstTurn: Color = 'red';
+
+function createFields(): Color[][] {
+  const fields: Color[][] = [];
+  for (let i = 0; i < 3; i++) {
+    fields.push([]);
+    for (let j = 0; j < 3; j++) {
+      fields[i].push('none');
+    }
+  }
+  return fields;
+}
 
 export class GameInstance {
   private state: DurableObjectState;
   private env: Env;
 
-  private fields: Color[][] = [];
+  private fields: Color[][] = createFields();
   private turn: Color = 'red';
-  private winner: Color = 'none';
+  private winner: Color | null = null;
   private sessions: Session[] = [];
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
 
-    this.state.blockConcurrencyWhile(async () => { // can not run on current miniflare version, use miniflare@next
-      this.fields = await this.state.storage?.get<Color[][]>('fields') || this.createFields();
-      this.turn = await this.state.storage?.get<Color>('turn') || 'red';
-    });
+    this.loadState();
+
+    // the following can not run on current miniflare version (1.X), use miniflare@next (2.X)
+    this.state.blockConcurrencyWhile(async () => await this.loadState());
+  }
+
+  /**
+   * Loads the attributes of this durable object from `state.storage`.
+   */
+  private async loadState(): Promise<void> {
+    const storedFields = await this.state.storage?.get<Color[][]>('fields');
+    if (storedFields !== undefined) {
+      this.fields = storedFields;
+    }
+    const storedTurn = await this.state.storage?.get<Color>('turn');
+    if (storedTurn !== undefined) {
+      this.turn = storedTurn;
+    }
+    const storedWinner = await this.state.storage?.get<Color | null>('winner');
+    if (storedWinner !== undefined) {
+      this.winner = this.winner;
+    }
+  }
+
+  /**
+   * Stores the attributes of this durable object to `state.storage`.
+   */
+  private async saveState(): Promise<void> {
+    await this.state.storage?.put('fields', this.fields);
+    await this.state.storage?.put('turn', this.turn);
+    await this.state.storage?.put('winner', this.winner);
   }
 
   private broadcast(message: object) {
@@ -96,6 +135,12 @@ export class GameInstance {
     return true;
   }
 
+  async reset(): Promise<void> {
+    this.fields = createFields();
+    this.turn = firstTurn;
+    await this.state.storage?.deleteAll(); // we do not need to call `saveState` in this case
+  }
+
   async fetch(request: Request): Promise<Response> { // when is this called?
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response("Expected Upgrade: websocket", { status: 426 });
@@ -146,6 +191,7 @@ export class GameInstance {
               this.turn = 'none';
               this.winner = 'none';
             }
+            this.saveState();
 
             this.broadcastState();
           }
@@ -156,25 +202,17 @@ export class GameInstance {
           return;
       }
     });
-    socket.addEventListener('close', event => {
+    socket.addEventListener('close', async (event) => {
       this.sessions = this.sessions.filter(aSession => aSession !== session);
       console.log(`Session for color '${session.color}' disconnected!`);
+      if (this.sessions.length === 0) {
+        await this.reset(); //TODO allow manual reset instead
+      }
     });
 
     return new Response(null, {
       status: 101,
       webSocket: client,
     });
-  }
-
-  private createFields(): Color[][] {
-    const fields: Color[][] = [];
-    for (let i = 0; i < 3; i++) {
-      fields.push([]);
-      for (let j = 0; j < 3; j++) {
-        fields[i].push('none');
-      }
-    }
-    return fields;
   }
 }
