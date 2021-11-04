@@ -152,7 +152,7 @@ export class GameInstance {
           break;
         default:
           console.log('invalid message type')
-          socket.close();
+          socket.close(1000);
           return;
       }
     });

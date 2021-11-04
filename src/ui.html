@@ -130,7 +130,7 @@
       newSocket.addEventListener('error', event => {
         alert(`Error in web socket: ${event.toString()}`);
         console.dir(event)
-        currentWebSocket.close();
+        currentWebSocket.close(1000);
       });
       newSocket.addEventListener('close', event => {
         alert('Disconnected!');
@@ -146,6 +146,11 @@
       if (!/^[0-9a-zA-Z]+$/.test(gameName)) {
         alert('Invalid game name! You can only use letters and numbers.');
       } else {
+        if (currentWebSocket !== null) {
+          gameContainer.classList.add('hidden');
+          currentWebSocket.close(1000);
+          currentWebSocket = null;
+        }
         joinGame(gameName);
       }
       return false; // cancel submission
