@@ -1,6 +1,7 @@
 import { Board } from "./Board";
 import { Color, ColorOrNone } from "./Color";
 import { Env } from "./Env";
+import { Message, MoveMessage, ResetMessage } from "./Message";
 
 interface Session {
   color: ColorOrNone;
@@ -9,6 +10,9 @@ interface Session {
 
 const firstTurn: Color = 'red';
 
+/**
+ * A durable object that represents a game of tic tac toe.
+ */
 export class GameInstance {
   private state: DurableObjectState;
   private env: Env;
@@ -55,24 +59,39 @@ export class GameInstance {
     await this.state.storage?.put('winner', this.winner);
   }
 
+  /**
+   * Sends a message to all connected clients.
+   * @param message the message to send.
+   */
   private broadcast(message: object) {
     this.sessions.forEach(session => {
       session.socket.send(JSON.stringify(message));
     })
   }
 
+  /**
+   * Sends a state update to all connected clients.
+   */
   private broadcastState() {
     this.broadcast({ type: 'move', fields: this.board.fields, turn: this.turn, winner: this.winner });
   }
 
-  async reset(): Promise<void> {
+  /**
+   * Resets the state of this game.
+   */
+  private async reset(): Promise<void> {
     this.board.reset();
     this.turn = firstTurn;
     this.winner = null;
     await this.state.storage?.deleteAll(); // we do not need to call `saveState` in this case
   }
 
-  async fetch(request: Request): Promise<Response> { // when is this called?
+  /**
+   * Handles incoming requests to this durable object. This will set up a WebSocket connection with the client.
+   * @param request the incoming HTTP request.
+   * @returns the outgoing HTTP response.
+   */
+  async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response("Expected Upgrade: websocket", { status: 426 });
     }
@@ -85,69 +104,114 @@ export class GameInstance {
       socket: socket,
       color: this.sessions.length === 0 ? 'red' : (this.sessions.length === 1 ? 'blue' : 'none'),
     };
-    this.sessions.push(session);
 
+    
+    socket.addEventListener('message', async event => this.onMessageReceived(session, event));
+    socket.addEventListener('close', async event => this.onSocketClose(session, event));
     socket.accept();
+
+    this.sessions.push(session);
     socket.send(JSON.stringify({ type: 'color', color: session.color, fields: this.board.fields }));
-    console.debug(`User with color ${session.color} is now connected!`);
 
     if (this.sessions.length >= 2) {
       this.broadcastState();
     }
 
-    socket.addEventListener('message', async event => {
-      if (typeof event.data !== 'string') {
-        socket.send(JSON.stringify({ type: 'error', message: 'WebSocket message is not a string! Did you forget to JSON.stringify()?' }));
-        return;
-      }
-      let message: any; // TODO strict typing!
-      try {
-        message = JSON.parse(event.data);
-      } catch (e) {
-        socket.send(JSON.stringify({type: 'error', message: 'WebSocket message is not valid JSON!'}));
-        return;
-      }
-
-      switch (message.type) {
-        case 'move':
-          if (session.color !== 'none' && !this.board.hasColor(message.row, message.col)) {
-            this.board.setColor(message.row, message.col, session.color);
-            this.turn = this.turn === 'red' ? 'blue' : 'red';
-
-            const winner = this.board.findWinningColor();
-            if (winner !== 'none') {
-              this.winner = winner; // game over
-              this.turn = 'none';
-            } else if (this.board.isFull()) {
-              this.winner = 'none'; // tie
-              this.turn = 'none';
-            }
-            await this.saveState();
-
-            this.broadcastState();
-          }
-          break;
-        case 'reset':
-          if (session.color !== 'none') {
-            await this.reset();
-            this.broadcastState();
-          }
-          break;
-        default:
-          console.log('invalid message type')
-          socket.close(1000);
-          return;
-      }
-    });
-    socket.addEventListener('close', async (event) => {
-      this.sessions = this.sessions.filter(aSession => aSession !== session);
-      console.log(`Session for color '${session.color}' disconnected!`);
-      // todo give color to someone else
-    });
-
     return new Response(null, {
-      status: 101,
+      status: 101, // Switch protocols
       webSocket: client,
     });
+  }
+
+  /**
+   * Parses and handles WebSocket messages.
+   * @param session the session of the message sender. 
+   * @param event the message sending event.
+   */
+  private async onMessageReceived(session: Session, event: MessageEvent): Promise<void> {
+    if (typeof event.data !== 'string') {
+      session.socket.send(JSON.stringify({ type: 'error', message: 'WebSocket message is not a string! Did you forget to JSON.stringify()?' }));
+      return;
+    }
+
+    let unvalidatedMessage: any;
+    try {
+      unvalidatedMessage = JSON.parse(event.data);
+    } catch (e) {
+      session.socket.send(JSON.stringify({type: 'error', message: 'WebSocket message is not valid JSON!'}));
+      return;
+    }
+
+    if (typeof unvalidatedMessage !== 'object' || typeof unvalidatedMessage.type !== 'string') {
+      session.socket.send(JSON.stringify({type: 'error', message: 'WebSocket messages must be objects with a `type` string attribute!'}));
+    }
+
+    let msg: Message = unvalidatedMessage;
+
+    switch (msg.type) {
+      case 'move':
+        if (typeof unvalidatedMessage.row !== 'number' || typeof unvalidatedMessage.col !== 'number') {
+          session.socket.send(JSON.stringify({type: 'error', message: '`move` messages must have a numeric `row` and `col` value!'}));
+          return;
+        }
+        await this.handleMoveMessage(session, msg as MoveMessage);
+        break;
+      case 'reset':
+        await this.handleResetMessage(session, msg as ResetMessage);
+        break;
+      default:
+        session.socket.send(JSON.stringify({type: 'error', message: `'${msg.type}' is not a valid message type!`}));
+        break;
+    }
+  }
+
+  /**
+   * Handles the `close` event for WebSocket connections to the client. 
+   * @param session the session associated with the socket.
+   * @param event the socket closing event.
+   */
+  private async onSocketClose(session: Session, event: CloseEvent): Promise<void> {
+    this.sessions = this.sessions.filter(aSession => aSession !== session);
+    console.log(`Session for color '${session.color}' disconnected!`);
+    // todo give color to someone else
+  }
+
+  /**
+   * Handles `move` messages.
+   * @param session the session of the message sender.
+   * @param msg the message to handle.
+   */
+  private async handleMoveMessage(session: Session, msg: MoveMessage): Promise<void> {
+    if (session.color !== 'none' && !this.board.hasColor(msg.row, msg.col)) {
+      this.board.setColor(msg.row, msg.col, session.color);
+      this.turn = this.turn === 'red' ? 'blue' : 'red';
+
+      const winner = this.board.findWinningColor();
+      if (winner !== 'none') {
+        this.winner = winner; // game over
+        this.turn = 'none';
+      } else if (this.board.isFull()) {
+        this.winner = 'none'; // tie
+        this.turn = 'none';
+      }
+      await this.saveState();
+
+      this.broadcastState();
+    }
+  }
+
+  /**
+   * Handles `reset` messages.
+   * @param session the session of the message sender.
+   * @param msg the message to handle.
+   */
+  private async handleResetMessage(session: Session, msg: ResetMessage): Promise<void> {
+    if (session.color === 'none') {
+      session.socket.send(JSON.stringify({ type: 'error', message: 'You can not reset a game in which you do not participate!'}));
+      return;
+    }
+    
+    await this.reset();
+    this.broadcastState();
   }
 }
