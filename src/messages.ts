@@ -9,7 +9,7 @@ export interface Message {
 }
 
 /**
- * A move message is sent when a player selects a field they want to color.
+ * A move message is sent to the server when a player selects a field they want to color.
  */
 export interface MoveMessage extends Message {
     type: 'move';
@@ -24,8 +24,19 @@ export interface MoveMessage extends Message {
 }
 
 /**
- * A reset message is sent to trigger a game reset.
+ * A reset message is sent to the server to trigger a game reset.
  */
 export interface ResetMessage extends Message {
     type: 'reset';
 };
+
+/**
+ * An error message is sent to the client if an error occurs that the client is involved in.
+ */
+export interface ErrorMessage extends Message {
+    type: 'error';
+    /**
+     * A descripion description of the error.
+     */
+    message: string;
+}

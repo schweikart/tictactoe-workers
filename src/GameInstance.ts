@@ -1,12 +1,8 @@
 import { Board } from "./Board";
 import { Color, ColorOrNone } from "./Color";
 import { Env } from "./Env";
-import { Message, MoveMessage, ResetMessage } from "./Message";
-
-interface Session {
-  color: ColorOrNone;
-  socket: WebSocket;
-}
+import { Message, MoveMessage, ResetMessage } from "./messages";
+import { Session, SessionList } from "./sessions";
 
 const firstTurn: Color = 'red';
 
@@ -20,7 +16,7 @@ export class GameInstance {
   private board: Board = new Board();
   private turn: ColorOrNone = 'red';
   private winner: ColorOrNone | null = null;
-  private sessions: Session[] = [];
+  private sessions: SessionList = new SessionList();
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -60,20 +56,10 @@ export class GameInstance {
   }
 
   /**
-   * Sends a message to all connected clients.
-   * @param message the message to send.
-   */
-  private broadcast(message: object) {
-    this.sessions.forEach(session => {
-      session.socket.send(JSON.stringify(message));
-    })
-  }
-
-  /**
    * Sends a state update to all connected clients.
    */
   private broadcastState() {
-    this.broadcast({ type: 'move', fields: this.board.fields, turn: this.turn, winner: this.winner });
+    this.sessions.broadcast({ type: 'move', fields: this.board.fields, turn: this.turn, winner: this.winner } as Message); //TODO typing
   }
 
   /**
@@ -100,17 +86,17 @@ export class GameInstance {
     const client = webSocketPair[0];
     const socket = webSocketPair[1];
 
-    const session: Session = {
-      socket: socket,
-      color: this.sessions.length === 0 ? 'red' : (this.sessions.length === 1 ? 'blue' : 'none'),
-    };
+    const session = new Session(
+      this.sessions.length === 0 ? 'red' : (this.sessions.length === 1 ? 'blue' : 'none'),
+      socket
+    )
 
     
     socket.addEventListener('message', async event => this.onMessageReceived(session, event));
     socket.addEventListener('close', async event => this.onSocketClose(session, event));
     socket.accept();
 
-    this.sessions.push(session);
+    this.sessions.add(session);
     socket.send(JSON.stringify({ type: 'color', color: session.color, fields: this.board.fields }));
 
     if (this.sessions.length >= 2) {
@@ -171,8 +157,7 @@ export class GameInstance {
    * @param event the socket closing event.
    */
   private async onSocketClose(session: Session, event: CloseEvent): Promise<void> {
-    this.sessions = this.sessions.filter(aSession => aSession !== session);
-    console.log(`Session for color '${session.color}' disconnected!`);
+    this.sessions.remove(session);
     // todo give color to someone else
   }
 
