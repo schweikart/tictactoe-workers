@@ -85,12 +85,7 @@ export class GameInstance {
     const webSocketPair = new WebSocketPair();
     const client = webSocketPair[0];
     const socket = webSocketPair[1];
-
-    const session = new Session(
-      this.sessions.length === 0 ? 'red' : (this.sessions.length === 1 ? 'blue' : 'none'),
-      socket
-    )
-
+    const session = new Session(this.sessions.findNextColor(), socket);
     
     socket.addEventListener('message', async event => this.onMessageReceived(session, event));
     socket.addEventListener('close', async event => this.onSocketClose(session, event));
@@ -100,7 +95,7 @@ export class GameInstance {
     socket.send(JSON.stringify({ type: 'color', color: session.color, fields: this.board.fields }));
 
     if (this.sessions.length >= 2) {
-      this.broadcastState();
+      this.broadcastState(); //TODO overkill for spectators
     }
 
     return new Response(null, {
@@ -158,7 +153,16 @@ export class GameInstance {
    */
   private async onSocketClose(session: Session, event: CloseEvent): Promise<void> {
     this.sessions.remove(session);
-    // todo give color to someone else
+
+    // find new player, if necessary
+    if (session.color !== 'none') {
+      const spectator = this.sessions.findWithColor('none');
+      if (spectator !== undefined) {
+        spectator.color = session.color;
+        spectator.sendMessage({ type: 'color', color: session.color, fields: this.board.fields } as Message); //TODO typings
+        this.broadcastState(); // TODO overkill
+      }
+    }
   }
 
   /**

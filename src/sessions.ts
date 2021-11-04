@@ -70,5 +70,32 @@ export class SessionList {
     public get length() : number {
         return this.sessions.length;
     }
-    
+
+    /**
+     * Tries to find a session that has a given color.
+     * @param color the color to look out for.
+     * @returns the session or undefined if no session with this color was found.
+     */
+    public findWithColor(color: ColorOrNone): Session | undefined {
+        for (let i = 0; i < this.sessions.length; i++) {
+            if (this.sessions[i].color === color) {
+                return this.sessions[i]
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Finds a color for a new session.
+     * @returns the color for the new session.
+     */
+    public findNextColor(): ColorOrNone {
+        if (this.findWithColor('red') === undefined) {
+            return 'red';
+        } else if (this.findWithColor('blue') === undefined) {
+            return 'blue';
+        } else {
+            return 'none';
+        }
+    }
 }
