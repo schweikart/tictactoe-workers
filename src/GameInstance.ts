@@ -142,9 +142,7 @@ export class GameInstance {
             if (winner !== 'none') {
               this.turn = 'none';
               this.winner = winner;
-            }
-
-            if (this.isTie()) {
+            } else if (this.isTie()) {
               this.turn = 'none';
               this.winner = 'none';
             }
