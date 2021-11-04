@@ -165,7 +165,7 @@ export class GameInstance {
       this.broadcastState();
     }
 
-    socket.addEventListener('message', event => {
+    socket.addEventListener('message', async event => {
       if (typeof event.data !== 'string') {
         socket.send(JSON.stringify({ type: 'error', message: 'WebSocket message is not a string! Did you forget to JSON.stringify()?' }));
         return;
@@ -197,6 +197,12 @@ export class GameInstance {
             this.broadcastState();
           }
           break;
+        case 'reset':
+          if (session.color !== 'none') {
+            await this.reset();
+            this.broadcastState();
+          }
+          break;
         default:
           console.log('invalid message type')
           socket.close(1000);
@@ -206,9 +212,7 @@ export class GameInstance {
     socket.addEventListener('close', async (event) => {
       this.sessions = this.sessions.filter(aSession => aSession !== session);
       console.log(`Session for color '${session.color}' disconnected!`);
-      if (this.sessions.length === 0) {
-        await this.reset(); //TODO allow manual reset instead
-      }
+      // todo give color to someone else
     });
 
     return new Response(null, {

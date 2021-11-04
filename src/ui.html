@@ -55,7 +55,7 @@
     <br>
 
     <div id="gameContainer" class="hidden">
-      Your color: <span id="myColor">???</span>. <span id="instruction">Waiting for opponent...</span>
+      Your color: <span id="myColor">???</span>. <span id="instruction">Waiting for opponent...</span> <button id="reset" class="hidden">Reset</button>
 
       <br>
 
@@ -74,6 +74,7 @@
     const instructionSpan = document.getElementById('instruction');
     const boardContainer = document.getElementById('board');
     const gameContainer = document.getElementById('gameContainer');
+    const resetButton = document.getElementById('reset');
 
     /**
      * Holds the web socket that connects to the current game instance.
@@ -106,6 +107,11 @@
           case 'color':
             myColorSpan.innerText = message.color;
             instructionSpan.innerText = 'Waiting for opponent...'
+            if (message.color !== 'none') {
+              resetButton.classList.remove('hidden');
+            } else {
+              message.color.classList.add('hidden');
+            }
             updateBoardColors(message.fields);
             break;
           case 'move':
@@ -178,6 +184,12 @@
         rowDiv.appendChild(el);
       }
     }
+
+    function clickReset() {
+      currentWebSocket.send(JSON.stringify({ type: 'reset' }));
+    }
+
+    resetButton.onclick = clickReset;
   </script>
 </body>
 
