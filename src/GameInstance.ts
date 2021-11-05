@@ -99,10 +99,7 @@ export class GameInstance {
 
     this.sessions.add(session);
     session.sendMessage(createColorMessage(session.color));
-
-    if (this.sessions.length >= 2) {
-      this.sessions.broadcast(this.createStateMessage()); //TODO overkill for spectators
-    }
+    session.sendMessage(this.createStateMessage()); //TODO wait for opponent
 
     return new Response(null, {
       status: 101, // Switch protocols
@@ -167,7 +164,7 @@ export class GameInstance {
       if (spectator !== undefined) {
         spectator.color = session.color;
         spectator.sendMessage(createColorMessage(session.color));
-        this.sessions.broadcast(this.createStateMessage()); // TODO overkill
+        spectator.sendMessage(this.createStateMessage());
       }
     }
   }
