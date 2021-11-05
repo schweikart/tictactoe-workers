@@ -1,7 +1,7 @@
 import { Board } from "./Board";
 import { Color, ColorOrNone } from "./Color";
 import { Env } from "./Env";
-import { Message, MoveMessage, ResetMessage } from "./messages";
+import { createColorMessage, Message, MoveMessage, ResetMessage, StateMessage } from "./messages";
 import { Session, SessionList } from "./sessions";
 
 const firstTurn: Color = 'red';
@@ -56,10 +56,16 @@ export class GameInstance {
   }
 
   /**
-   * Sends a state update to all connected clients.
+   * Creates a message for the current game state.
+   * @returns the created message.
    */
-  private broadcastState() {
-    this.sessions.broadcast({ type: 'move', fields: this.board.fields, turn: this.turn, winner: this.winner } as Message); //TODO typing
+  private createStateMessage(): StateMessage {
+    return {
+      type: 'state',
+      fields: this.board.fields,
+      turn: this.turn,
+      winner: this.winner,
+    };
   }
 
   /**
@@ -92,10 +98,10 @@ export class GameInstance {
     socket.accept();
 
     this.sessions.add(session);
-    socket.send(JSON.stringify({ type: 'color', color: session.color, fields: this.board.fields }));
+    session.sendMessage(createColorMessage(session.color));
 
     if (this.sessions.length >= 2) {
-      this.broadcastState(); //TODO overkill for spectators
+      this.sessions.broadcast(this.createStateMessage()); //TODO overkill for spectators
     }
 
     return new Response(null, {
@@ -111,7 +117,7 @@ export class GameInstance {
    */
   private async onMessageReceived(session: Session, event: MessageEvent): Promise<void> {
     if (typeof event.data !== 'string') {
-      session.socket.send(JSON.stringify({ type: 'error', message: 'WebSocket message is not a string! Did you forget to JSON.stringify()?' }));
+      session.sendErrorMessage('WebSocket message is not a string! Did you forget to JSON.stringify()?');
       return;
     }
 
@@ -119,12 +125,13 @@ export class GameInstance {
     try {
       unvalidatedMessage = JSON.parse(event.data);
     } catch (e) {
-      session.socket.send(JSON.stringify({type: 'error', message: 'WebSocket message is not valid JSON!'}));
+      session.sendErrorMessage('WebSocket message is not valid JSON!');
       return;
     }
 
     if (typeof unvalidatedMessage !== 'object' || typeof unvalidatedMessage.type !== 'string') {
-      session.socket.send(JSON.stringify({type: 'error', message: 'WebSocket messages must be objects with a `type` string attribute!'}));
+      session.sendErrorMessage('WebSocket messages must be objects with a `type` string attribute!');
+      return;
     }
 
     let msg: Message = unvalidatedMessage;
@@ -132,7 +139,7 @@ export class GameInstance {
     switch (msg.type) {
       case 'move':
         if (typeof unvalidatedMessage.row !== 'number' || typeof unvalidatedMessage.col !== 'number') {
-          session.socket.send(JSON.stringify({type: 'error', message: '`move` messages must have a numeric `row` and `col` value!'}));
+          session.sendErrorMessage('`move` messages must have a numeric `row` and `col` value!');
           return;
         }
         await this.handleMoveMessage(session, msg as MoveMessage);
@@ -141,7 +148,7 @@ export class GameInstance {
         await this.handleResetMessage(session, msg as ResetMessage);
         break;
       default:
-        session.socket.send(JSON.stringify({type: 'error', message: `'${msg.type}' is not a valid message type!`}));
+        session.sendErrorMessage(`'${msg.type}' is not a valid message type!`);
         break;
     }
   }
@@ -159,8 +166,8 @@ export class GameInstance {
       const spectator = this.sessions.findWithColor('none');
       if (spectator !== undefined) {
         spectator.color = session.color;
-        spectator.sendMessage({ type: 'color', color: session.color, fields: this.board.fields } as Message); //TODO typings
-        this.broadcastState(); // TODO overkill
+        spectator.sendMessage(createColorMessage(session.color));
+        this.sessions.broadcast(this.createStateMessage()); // TODO overkill
       }
     }
   }
@@ -185,7 +192,7 @@ export class GameInstance {
       }
       await this.saveState();
 
-      this.broadcastState();
+      this.sessions.broadcast(this.createStateMessage());
     }
   }
 
@@ -196,11 +203,11 @@ export class GameInstance {
    */
   private async handleResetMessage(session: Session, msg: ResetMessage): Promise<void> {
     if (session.color === 'none') {
-      session.socket.send(JSON.stringify({ type: 'error', message: 'You can not reset a game in which you do not participate!'}));
+      session.sendErrorMessage('You can not reset a game in which you do not participate!');
       return;
     }
     
     await this.reset();
-    this.broadcastState();
+    this.sessions.broadcast(this.createStateMessage());
   }
 }

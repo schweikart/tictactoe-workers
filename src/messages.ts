@@ -1,3 +1,5 @@
+import { ColorOrNone } from "./Color";
+
 /**
  * The structure of any message sent to the WebSocket server.
  */
@@ -39,4 +41,48 @@ export interface ErrorMessage extends Message {
      * A descripion description of the error.
      */
     message: string;
+}
+
+/**
+ * A state message is sent to the clients to update the game state.
+ */
+export interface StateMessage extends Message {
+    type: 'state';
+    /**
+     * The colors of the 3x3 fields in the tic tac toe field.
+     */
+    fields: ColorOrNone[][];
+    /**
+     * The next player to make a move. `none` indicates that currently nobody can make a move
+     * (either the game is over or we are waiting for an opponent to join).
+     */
+    turn: ColorOrNone;
+    /**
+     * The winner of the current game. This value is `null` if the game is not over yet, `none` if
+     * the game resulted in a tie and `red`/`blue` if `red` or `blue` won the game.
+     */
+    winner: ColorOrNone | null;
+}
+
+/**
+ * A color message is sent to the client to assign them a player/spectator color.
+ */
+export interface ColorMessage extends Message {
+    type: 'color';
+    /**
+     * The new color of the player. `none` indicates that the player is a spectator.
+     */
+    color: ColorOrNone;
+}
+
+/**
+ * Creates a color message for a given color.
+ * @param color the color for the message.
+ * @returns the created message.
+ */
+export function createColorMessage(color: ColorOrNone): ColorMessage {
+    return {
+        type: 'color',
+        color,
+    };
 }

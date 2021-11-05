@@ -112,9 +112,8 @@
             } else {
               message.color.classList.add('hidden');
             }
-            updateBoardColors(message.fields);
             break;
-          case 'move':
+          case 'state': //TODO handle "waiting for opponent"
             if (message.turn === myColorSpan.innerText) {
               instructionSpan.innerText = 'It\'s your turn!';
               boardContainer.classList.add('myturn');
