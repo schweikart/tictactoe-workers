@@ -76,6 +76,17 @@ export interface ColorMessage extends Message {
 }
 
 /**
+ * A players message is sent to the client to inform about the connected players.
+ */
+export interface PlayersMessage extends Message {
+    type: 'players';
+    /**
+     * The amount of connected players. If this number is 1, the game is paused.
+     */
+    playerCount: number;
+}
+
+/**
  * Creates a color message for a given color.
  * @param color the color for the message.
  * @returns the created message.
@@ -84,5 +95,17 @@ export function createColorMessage(color: ColorOrNone): ColorMessage {
     return {
         type: 'color',
         color,
+    };
+}
+
+/**
+ * Creates a players message with the given parameters.
+ * @param playerCount the amount of connected clients.
+ * @returns the created message.
+ */
+export function createPlayersMessage(playerCount: number): PlayersMessage {
+    return {
+        type: 'players',
+        playerCount,
     };
 }

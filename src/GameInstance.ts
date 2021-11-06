@@ -1,7 +1,7 @@
 import { Board } from "./Board";
 import { Color, ColorOrNone } from "./Color";
 import { Env } from "./Env";
-import { createColorMessage, Message, MoveMessage, ResetMessage, StateMessage } from "./messages";
+import { createColorMessage, createPlayersMessage, Message, MoveMessage, ResetMessage, StateMessage } from "./messages";
 import { Session, SessionList } from "./sessions";
 
 const firstTurn: Color = 'red';
@@ -99,7 +99,8 @@ export class GameInstance {
 
     this.sessions.add(session);
     session.sendMessage(createColorMessage(session.color));
-    session.sendMessage(this.createStateMessage()); //TODO wait for opponent
+    session.sendMessage(this.createStateMessage());
+    this.sessions.broadcast(createPlayersMessage(this.sessions.length));
 
     return new Response(null, {
       status: 101, // Switch protocols
@@ -167,6 +168,8 @@ export class GameInstance {
         spectator.sendMessage(this.createStateMessage());
       }
     }
+
+    this.sessions.broadcast(createPlayersMessage(this.sessions.length));
   }
 
   /**
@@ -175,7 +178,7 @@ export class GameInstance {
    * @param msg the message to handle.
    */
   private async handleMoveMessage(session: Session, msg: MoveMessage): Promise<void> {
-    if (session.color !== 'none' && !this.board.hasColor(msg.row, msg.col)) {
+    if (session.color !== 'none' && this.sessions.length >= 2 && !this.board.hasColor(msg.row, msg.col)) {
       this.board.setColor(msg.row, msg.col, session.color);
       this.turn = this.turn === 'red' ? 'blue' : 'red';
 
