@@ -192,8 +192,10 @@
         currentWebSocket.close(1000);
       });
       newSocket.addEventListener('close', event => {
-        alert('Disconnected!');
+        gameContainer.classList.remove('hidden');
         currentWebSocket = null;
+        state.ready = false;
+        alert('Disconnected!');
       })
     }
 
