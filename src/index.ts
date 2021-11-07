@@ -1,6 +1,6 @@
-import { Env } from './Env'
-import { handleRequest } from './handler'
-export { GameInstance } from './GameInstance'
+import { Env } from './Env';
+import { handleRequest } from './handler';
+export { GameInstance } from './GameInstance';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -12,5 +12,5 @@ export default {
         status: 500,
       });
     }
-  }
-}
+  },
+};

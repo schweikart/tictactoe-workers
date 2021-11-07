@@ -2,15 +2,16 @@
   "name": "@schweikart/tictactoe-workers",
   "version": "0.0.0",
   "description": "Tic Tac Toe on Cloudflare Workers!",
-  "main": "dist/worker.js",
+  "main": "dist/index.mjs",
+  "private": true,
   "scripts": {
     "build": "rollup -c",
-    "format": "prettier --write  '*.{json,js}' 'src/**/*.{js,ts}' 'test/**/*.{js,ts}'",
-    "lint": "eslint --max-warnings=0 src && prettier --check '*.{json,js}' 'src/**/*.{js,ts}' 'test/**/*.{js,ts}'",
+    "format": "prettier --ignore-path ./.gitignore --write .",
+    "lint": "eslint --max-warnings=0 src && prettier --ignore-path ./.gitignore --check .",
     "test": "jest --config jestconfig.json --verbose",
-    "dev": "miniflare -w --do-persist"
+    "dev": "miniflare --watch --do-persist"
   },
-  "author": "author",
+  "author": "schweikart",
   "license": "MIT",
   "eslintConfig": {
     "root": true,

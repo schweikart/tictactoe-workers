@@ -1,9 +1,12 @@
-import { Env } from './Env'
-import UI from './ui.html'
+import { Env } from './Env';
+import UI from './ui.html';
 
 const apiRoute = '/api/game/';
 
-export async function handleRequest(request: Request, env: Env): Promise<Response> {
+export async function handleRequest(
+  request: Request,
+  env: Env,
+): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (path === '/') {
     return createUiResponse();
@@ -17,8 +20,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 function createUiResponse(): Response {
   return new Response(UI, {
     headers: {
-      'Content-Type': 'text/html;charset=UTF-8'
-    }
+      'Content-Type': 'text/html;charset=UTF-8',
+    },
   });
 }
 

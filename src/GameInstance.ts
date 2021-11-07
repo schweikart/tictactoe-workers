@@ -1,8 +1,15 @@
-import { Board } from "./Board";
-import { Color, ColorOrNone } from "./Color";
-import { Env } from "./Env";
-import { createColorMessage, createPlayersMessage, Message, MoveMessage, ResetMessage, StateMessage } from "./messages";
-import { Session, SessionList } from "./sessions";
+import { Board } from './Board';
+import { Color, ColorOrNone } from './Color';
+import { Env } from './Env';
+import {
+  createColorMessage,
+  createPlayersMessage,
+  Message,
+  MoveMessage,
+  ResetMessage,
+  StateMessage,
+} from './messages';
+import { Session, SessionList } from './sessions';
 
 const firstTurn: Color = 'red';
 
@@ -85,16 +92,20 @@ export class GameInstance {
    */
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade') !== 'websocket') {
-      return new Response("Expected Upgrade: websocket", { status: 426 });
+      return new Response('Expected Upgrade: websocket', { status: 426 });
     }
 
     const webSocketPair = new WebSocketPair();
     const client = webSocketPair[0];
     const socket = webSocketPair[1];
     const session = new Session(this.sessions.findNextColor(), socket);
-    
-    socket.addEventListener('message', async event => this.onMessageReceived(session, event));
-    socket.addEventListener('close', async event => this.onSocketClose(session, event));
+
+    socket.addEventListener('message', async (event) =>
+      this.onMessageReceived(session, event),
+    );
+    socket.addEventListener('close', async (event) =>
+      this.onSocketClose(session, event),
+    );
     socket.accept();
 
     this.sessions.add(session);
@@ -110,12 +121,17 @@ export class GameInstance {
 
   /**
    * Parses and handles WebSocket messages.
-   * @param session the session of the message sender. 
+   * @param session the session of the message sender.
    * @param event the message sending event.
    */
-  private async onMessageReceived(session: Session, event: MessageEvent): Promise<void> {
+  private async onMessageReceived(
+    session: Session,
+    event: MessageEvent,
+  ): Promise<void> {
     if (typeof event.data !== 'string') {
-      session.sendErrorMessage('WebSocket message is not a string! Did you forget to JSON.stringify()?');
+      session.sendErrorMessage(
+        'WebSocket message is not a string! Did you forget to JSON.stringify()?',
+      );
       return;
     }
 
@@ -127,8 +143,13 @@ export class GameInstance {
       return;
     }
 
-    if (typeof unvalidatedMessage !== 'object' || typeof unvalidatedMessage.type !== 'string') {
-      session.sendErrorMessage('WebSocket messages must be objects with a `type` string attribute!');
+    if (
+      typeof unvalidatedMessage !== 'object' ||
+      typeof unvalidatedMessage.type !== 'string'
+    ) {
+      session.sendErrorMessage(
+        'WebSocket messages must be objects with a `type` string attribute!',
+      );
       return;
     }
 
@@ -136,8 +157,13 @@ export class GameInstance {
 
     switch (msg.type) {
       case 'move':
-        if (typeof unvalidatedMessage.row !== 'number' || typeof unvalidatedMessage.col !== 'number') {
-          session.sendErrorMessage('`move` messages must have a numeric `row` and `col` value!');
+        if (
+          typeof unvalidatedMessage.row !== 'number' ||
+          typeof unvalidatedMessage.col !== 'number'
+        ) {
+          session.sendErrorMessage(
+            '`move` messages must have a numeric `row` and `col` value!',
+          );
           return;
         }
         await this.handleMoveMessage(session, msg as MoveMessage);
@@ -152,11 +178,14 @@ export class GameInstance {
   }
 
   /**
-   * Handles the `close` event for WebSocket connections to the client. 
+   * Handles the `close` event for WebSocket connections to the client.
    * @param session the session associated with the socket.
    * @param event the socket closing event.
    */
-  private async onSocketClose(session: Session, event: CloseEvent): Promise<void> {
+  private async onSocketClose(
+    session: Session,
+    event: CloseEvent,
+  ): Promise<void> {
     this.sessions.remove(session);
 
     // find new player, if necessary
@@ -177,8 +206,15 @@ export class GameInstance {
    * @param session the session of the message sender.
    * @param msg the message to handle.
    */
-  private async handleMoveMessage(session: Session, msg: MoveMessage): Promise<void> {
-    if (session.color !== 'none' && this.sessions.length >= 2 && !this.board.hasColor(msg.row, msg.col)) {
+  private async handleMoveMessage(
+    session: Session,
+    msg: MoveMessage,
+  ): Promise<void> {
+    if (
+      session.color !== 'none' &&
+      this.sessions.length >= 2 &&
+      !this.board.hasColor(msg.row, msg.col)
+    ) {
       this.board.setColor(msg.row, msg.col, session.color);
       this.turn = this.turn === 'red' ? 'blue' : 'red';
 
@@ -201,12 +237,17 @@ export class GameInstance {
    * @param session the session of the message sender.
    * @param msg the message to handle.
    */
-  private async handleResetMessage(session: Session, msg: ResetMessage): Promise<void> {
+  private async handleResetMessage(
+    session: Session,
+    msg: ResetMessage,
+  ): Promise<void> {
     if (session.color === 'none') {
-      session.sendErrorMessage('You can not reset a game in which you do not participate!');
+      session.sendErrorMessage(
+        'You can not reset a game in which you do not participate!',
+      );
       return;
     }
-    
+
     await this.reset();
     this.sessions.broadcast(this.createStateMessage());
   }
