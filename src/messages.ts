@@ -1,4 +1,4 @@
-import { ColorOrNone } from './Color';
+import { ColorOrNone } from './game/Color';
 
 /**
  * The structure of any message sent to the WebSocket server.

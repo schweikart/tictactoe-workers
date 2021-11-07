@@ -1,4 +1,4 @@
-import { ColorOrNone } from './Color';
+import { ColorOrNone } from './game/Color';
 import { ErrorMessage, Message } from './messages';
 
 /**
@@ -17,7 +17,7 @@ export class Session {
    * Sends a message to the client associated with this session.
    * @param message the message to send.
    */
-  public sendMessage(message: Message) {
+  public sendMessage(message: Message): void {
     this.socket.send(JSON.stringify(message));
   }
 
@@ -25,7 +25,7 @@ export class Session {
    * Sends an error message to the client associated with this session.
    * @param error
    */
-  public sendErrorMessage(error: string) {
+  public sendErrorMessage(error: string): void {
     const msg: ErrorMessage = {
       type: 'error',
       message: error,

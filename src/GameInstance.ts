@@ -1,17 +1,13 @@
-import { Board } from './Board';
-import { Color, ColorOrNone } from './Color';
 import { Env } from './Env';
+import { Game, SerializedGame } from './game/Game';
 import {
   createColorMessage,
   createPlayersMessage,
   Message,
   MoveMessage,
-  ResetMessage,
   StateMessage,
 } from './messages';
 import { Session, SessionList } from './sessions';
-
-const firstTurn: Color = 'red';
 
 /**
  * A durable object that represents a game of tic tac toe.
@@ -20,18 +16,14 @@ export class GameInstance {
   private state: DurableObjectState;
   private env: Env;
 
-  private board: Board = new Board();
-  private turn: ColorOrNone = 'red';
-  private winner: ColorOrNone | null = null;
+  private game: Game = new Game();
   private sessions: SessionList = new SessionList();
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
 
-    this.loadState();
-
-    // the following can not run on current miniflare version (1.X), use miniflare@next (2.X)
+    // the following can not run on the current miniflare version (1.X), use miniflare@next (2.X)
     this.state.blockConcurrencyWhile(async () => await this.loadState());
   }
 
@@ -39,27 +31,17 @@ export class GameInstance {
    * Loads the attributes of this durable object from `state.storage`.
    */
   private async loadState(): Promise<void> {
-    const storedFields = await this.state.storage?.get<Color[][]>('fields');
-    if (storedFields !== undefined) {
-      this.board = new Board(storedFields);
-    }
-    const storedTurn = await this.state.storage?.get<Color>('turn');
-    if (storedTurn !== undefined) {
-      this.turn = storedTurn;
-    }
-    const storedWinner = await this.state.storage?.get<Color | null>('winner');
-    if (storedWinner !== undefined) {
-      this.winner = this.winner;
-    }
+    const serializedGame = await this.state.storage?.get<SerializedGame>(
+      'game',
+    );
+    this.game = new Game(serializedGame);
   }
 
   /**
    * Stores the attributes of this durable object to `state.storage`.
    */
   private async saveState(): Promise<void> {
-    await this.state.storage?.put('fields', this.board.fields);
-    await this.state.storage?.put('turn', this.turn);
-    await this.state.storage?.put('winner', this.winner);
+    await this.state.storage?.put('game', this.game.serialize());
   }
 
   /**
@@ -67,11 +49,13 @@ export class GameInstance {
    * @returns the created message.
    */
   private createStateMessage(): StateMessage {
+    const serializedGame = this.game.serialize();
+
     return {
       type: 'state',
-      fields: this.board.fields,
-      turn: this.turn,
-      winner: this.winner,
+      fields: serializedGame.fields,
+      turn: serializedGame.turn,
+      winner: this.game.winner,
     };
   }
 
@@ -79,9 +63,7 @@ export class GameInstance {
    * Resets the state of this game.
    */
   private async reset(): Promise<void> {
-    this.board.reset();
-    this.turn = firstTurn;
-    this.winner = null;
+    this.game = new Game();
     await this.state.storage?.deleteAll(); // we do not need to call `saveState` in this case
   }
 
@@ -103,9 +85,7 @@ export class GameInstance {
     socket.addEventListener('message', async (event) =>
       this.onMessageReceived(session, event),
     );
-    socket.addEventListener('close', async (event) =>
-      this.onSocketClose(session, event),
-    );
+    socket.addEventListener('close', async () => this.onSocketClose(session));
     socket.accept();
 
     this.sessions.add(session);
@@ -135,7 +115,8 @@ export class GameInstance {
       return;
     }
 
-    let unvalidatedMessage: any;
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let unvalidatedMessage: any; // TODO avoid any
     try {
       unvalidatedMessage = JSON.parse(event.data);
     } catch (e) {
@@ -153,7 +134,7 @@ export class GameInstance {
       return;
     }
 
-    let msg: Message = unvalidatedMessage;
+    const msg: Message = unvalidatedMessage;
 
     switch (msg.type) {
       case 'move':
@@ -169,7 +150,7 @@ export class GameInstance {
         await this.handleMoveMessage(session, msg as MoveMessage);
         break;
       case 'reset':
-        await this.handleResetMessage(session, msg as ResetMessage);
+        await this.handleResetMessage(session);
         break;
       default:
         session.sendErrorMessage(`'${msg.type}' is not a valid message type!`);
@@ -182,10 +163,7 @@ export class GameInstance {
    * @param session the session associated with the socket.
    * @param event the socket closing event.
    */
-  private async onSocketClose(
-    session: Session,
-    event: CloseEvent,
-  ): Promise<void> {
+  private async onSocketClose(session: Session): Promise<void> {
     this.sessions.remove(session);
 
     // find new player, if necessary
@@ -210,22 +188,14 @@ export class GameInstance {
     session: Session,
     msg: MoveMessage,
   ): Promise<void> {
-    if (
-      session.color !== 'none' &&
-      this.sessions.length >= 2 &&
-      !this.board.hasColor(msg.row, msg.col)
-    ) {
-      this.board.setColor(msg.row, msg.col, session.color);
-      this.turn = this.turn === 'red' ? 'blue' : 'red';
-
-      const winner = this.board.findWinningColor();
-      if (winner !== 'none') {
-        this.winner = winner; // game over
-        this.turn = 'none';
-      } else if (this.board.isFull()) {
-        this.winner = 'none'; // tie
-        this.turn = 'none';
-      }
+    if (session.color === 'none') {
+      session.sendErrorMessage("Spectators can't place colors!");
+    } else if (!this.game.canPlaceColor(session.color, msg.row, msg.col)) {
+      session.sendErrorMessage('Invalid move!');
+    } else if (this.sessions.length < 2) {
+      session.sendErrorMessage('The game is paused!');
+    } else {
+      this.game.placeColor(session.color, msg.row, msg.col);
       await this.saveState();
 
       this.sessions.broadcast(this.createStateMessage());
@@ -237,10 +207,7 @@ export class GameInstance {
    * @param session the session of the message sender.
    * @param msg the message to handle.
    */
-  private async handleResetMessage(
-    session: Session,
-    msg: ResetMessage,
-  ): Promise<void> {
+  private async handleResetMessage(session: Session): Promise<void> {
     if (session.color === 'none') {
       session.sendErrorMessage(
         'You can not reset a game in which you do not participate!',
