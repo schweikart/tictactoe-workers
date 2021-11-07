@@ -16,3 +16,4 @@ jobs:
         with:
           preCommands: npm install
           apiToken: ${{ secrets.CF_API_TOKEN }}
+          environment: 'production'

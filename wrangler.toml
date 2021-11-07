@@ -20,3 +20,7 @@ bindings = [
 [[migrations]]
 tag = "v0"
 new_classes = ["GameInstance"]
+
+[env.production]
+zone_id = "b0e55e4cb3aa591efb7564c720f4a1cc"
+route = "tictactoe.maxschweik.art/*"

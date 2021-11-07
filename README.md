@@ -3,7 +3,7 @@
 This is an implementation of the game [tic tac toe](https://en.wikipedia.org/wiki/Tic-tac-toe) that allows playing with others across the internet. It is built with vanilla JavaScript, HTML and CSS on the client side and uses [Cloudflare Workers](https://workers.cloudflare.com/) (serverless functions) and their [Durable Objects](https://blog.cloudflare.com/introducing-workers-durable-objects/) (state management) on the server side. The client and the server communicate via [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) to allow playing with minimal latency.
 
 ## Try it out
-You can play this game in any modern browser at [https://tictactoe.schweikart.workers.dev/](https://tictactoe.schweikart.workers.dev/). This deployment might not be available forever since I currently need to pay a small but noticable fee to use the [Durable Objects beta](https://developers.cloudflare.com/workers/learning/using-durable-objects).
+You can play this game in any modern browser at [tictactoe.maxschweik.art](https://tictactoe.maxschweik.art/). This deployment might not be available forever since I currently need to pay a small but noticable fee to use the [Durable Objects beta](https://developers.cloudflare.com/workers/learning/using-durable-objects).
 
 ## Goals for this project
 The goal for this project was to learn about the technology stack mentioned above, not to create a polished product. Nevertheless, the technologies used market themselves to have performance, low latency and scalability built-in at the core and AFAIK I have followed their guidelines to create an application that too has these characteristics.
