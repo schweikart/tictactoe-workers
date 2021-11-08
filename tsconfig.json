@@ -10,9 +10,7 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "types": [
-      "@cloudflare/workers-types",
-      "@types/jest",
-      "@types/service-worker-mock"
+      "@cloudflare/workers-types"
     ]
   },
   "include": ["src"],

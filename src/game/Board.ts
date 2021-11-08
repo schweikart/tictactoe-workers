@@ -18,7 +18,7 @@ function createEmptyFields(): ColorOrNone[][] {
 /**
  * The width (and height) of a tic tac toe board.
  */
-const BOARD_WIDTH = 3;
+export const BOARD_WIDTH = 3;
 
 /**
  * Represents a tic tac toe board with 3x3 fields.
@@ -124,6 +124,16 @@ export class Board {
    */
   public reset(): void {
     this.fields = createEmptyFields();
+  }
+
+  /**
+   * Returns the color in a certain field of the board.
+   * @param row the row index of the field to check.
+   * @param col the column index of the field to check.
+   * @returns whether the field has a color.
+   */
+  public getColor(row: number, col: number): ColorOrNone {
+    return this.fields[row][col];
   }
 
   /**

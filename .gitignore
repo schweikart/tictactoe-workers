@@ -3,4 +3,5 @@ node_modules
 transpiled
 /.idea/
 /tscOutDir
-.mf/
+/.mf/
+/coverage/
