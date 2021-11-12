@@ -7,7 +7,8 @@ import {
   MoveMessage,
   StateMessage,
 } from './messages';
-import { Session, SessionList } from './sessions';
+import { Session } from './session/Session';
+import { SessionList } from './session/SessionList';
 
 /**
  * A durable object that represents a game of tic tac toe.
